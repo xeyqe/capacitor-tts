@@ -1,16 +1,9 @@
-import { WebPlugin } from '@capacitor/core';
+import { PluginListenerHandle, WebPlugin } from '@capacitor/core';
 
-import type { SpeechSynthesisEngine, TTSPlugin } from './definitions';
+import type { SpeechSynthesisEngine, TTSOptions, TTSPlugin } from './definitions';
 
 export class TTSWeb extends WebPlugin implements TTSPlugin {
-  async speak(options: {
-    text: string,
-    rate?: number,
-    pitch?: number,
-    volume?: number,
-    pan?: number,
-    voice?: number
-  }): Promise<void> {
+  async speak(options: TTSOptions): Promise<void> {
     console.log(options)
     return Promise.resolve();
   };
@@ -56,5 +49,18 @@ export class TTSWeb extends WebPlugin implements TTSPlugin {
   };
   async openInstall(): Promise<void> {
     return Promise.resolve();
+  };
+  async addListener(
+    eventName: 'progressEvent',
+    listenerFunc: (obj: {
+      utteranceId: string,
+      start: number,
+      end: number,
+      frame: number,
+    }) => void,
+  ): Promise<PluginListenerHandle> {
+    console.log(eventName);
+    console.log(listenerFunc);
+    return Promise.resolve(null as any);
   };
 }

@@ -22,7 +22,7 @@ npx cap sync
 * [`getMaxSpeechInputLength()`](#getmaxspeechinputlength)
 * [`getDefaults()`](#getdefaults)
 * [`openInstall()`](#openinstall)
-* [`addListener('progressEvent', ...)`](#addlistenerprogressevent)
+* [`addListener('progressEvent', ...)`](#addlistenerprogressevent-)
 * [Interfaces](#interfaces)
 
 </docgen-index>
@@ -132,7 +132,7 @@ openInstall() => Promise<void>
 ### addListener('progressEvent', ...)
 
 ```typescript
-addListener(eventName: 'progressEvent', listenerFunc: (obj: { utteranceId: string; start: number; end: number; frame: number; }) => void) => Promise<PluginListenerHandle> & PluginListenerHandle
+addListener(eventName: 'progressEvent', listenerFunc: (obj: { utteranceId: string; start: number; end: number; frame: number; }) => void) => Promise<PluginListenerHandle>
 ```
 
 | Param              | Type                                                                                               |
@@ -140,7 +140,7 @@ addListener(eventName: 'progressEvent', listenerFunc: (obj: { utteranceId: strin
 | **`eventName`**    | <code>'progressEvent'</code>                                                                       |
 | **`listenerFunc`** | <code>(obj: { utteranceId: string; start: number; end: number; frame: number; }) =&gt; void</code> |
 
-**Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt; & <a href="#pluginlistenerhandle">PluginListenerHandle</a></code>
+**Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
 
 --------------------
 

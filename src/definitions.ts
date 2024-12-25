@@ -27,7 +27,7 @@ export interface TTSPlugin {
       end: number,
       frame: number,
     }) => void,
-  ): Promise<PluginListenerHandle> & PluginListenerHandle;
+  ): Promise<PluginListenerHandle>;
 }
 
 export interface TTSOptions {
