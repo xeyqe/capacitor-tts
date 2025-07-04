@@ -2,6 +2,7 @@ import { PluginListenerHandle } from "@capacitor/core";
 
 export interface TTSPlugin {
   speak(options: TTSOptions): Promise<void>;
+  read(options: TTSReadOptions): Promise<void>;
   stop(): Promise<void>;
   getSupportedLanguages(): Promise<{ languages: string[] }>;
   getSupportedVoices(): Promise<{ voices: SpeechSynthesisVoice[] }>;
@@ -20,12 +21,13 @@ export interface TTSPlugin {
   }>;
   openInstall(): Promise<void>;
   addListener(
-    eventName: 'progressEvent',
+    eventName: 'progressEvent' | 'progressArrayEvent',
     listenerFunc: (obj: {
-      utteranceId: string,
-      start: number,
-      end: number,
-      frame: number,
+      utteranceId?: string,
+      start?: number,
+      end?: number,
+      frame?: number,
+      progress?: number,
     }) => void,
   ): Promise<PluginListenerHandle>;
 }
@@ -74,6 +76,53 @@ export interface TTSOptions {
   */
   streamType?: 'STREAM_ALARM' | 'STREAM_DTMF' | 'STREAM_MUSIC' | 'STREAM_NOTIFICATION' | 'STREAM_RING' | 'STREAM_SYSTEM' | 'STREAM_VOICE_CALL';
 }
+
+export interface TTSReadOptions {
+  /**
+   * The text that will be synthesised when the utterance is spoken.
+   *
+   * @example "Hello world"
+   */
+  texts: string[];
+  progress: number;
+  /**
+   * The speed at which the utterance will be spoken at.
+   *
+   * @default 1.0
+   */
+  rate?: number;
+  /**
+   * The pitch at which the utterance will be spoken at.
+   *
+   * @default 1.0
+   */
+  pitch?: number;
+  /**
+   * The volume that the utterance will be spoken at.
+   *
+   * @default 1.0
+   */
+  volume?: number;
+  /**
+ * Parameter key to specify how the speech is panned from left to right when speaking text.
+ * Pan is specified as a float ranging from -1 to +1 where -1 maps to a hard-left pan,
+ * 0 to center (the default behavior), and +1 to hard-right.
+ *
+ * @default 0.0
+ */
+  pan?: number;
+  /**
+   * The index of the selected voice that will be used to speak the utterance.
+   * Possible voices can be queried using `getSupportedVoices`.
+   */
+  voiceURI?: number;
+  /**
+  * Parameter key to specify the audio stream type to be used when speaking text or playing back a file.
+  * The value should be one of the STREAM_ constants defined in AudioManager.
+  */
+  streamType?: 'STREAM_ALARM' | 'STREAM_DTMF' | 'STREAM_MUSIC' | 'STREAM_NOTIFICATION' | 'STREAM_RING' | 'STREAM_SYSTEM' | 'STREAM_VOICE_CALL';
+}
+
 
 export interface SpeechSynthesisVoice {
   /**

@@ -1,5 +1,7 @@
 package com.example.tts;
 
+import android.util.Log;
+
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -42,6 +44,9 @@ public class TTSPlugin extends Plugin {
             public void onProgress(JSObject obj) {
                 notifyListeners("progressEvent", obj);
             }
+
+            @Override
+            public void onArrayProgress(JSObject progress) {}
         };
 
         try {
@@ -131,6 +136,8 @@ public class TTSPlugin extends Plugin {
                 @Override
                 public void onProgress(JSObject obj) {}
 
+                @Override
+                public void onArrayProgress(JSObject progress) {}
             };
             implementation.switchEngine(engineName, resultCallback, getContext());
         } catch (Exception ex) {
@@ -161,4 +168,41 @@ public class TTSPlugin extends Plugin {
         implementation.onDestroy();
     }
 
+    @PluginMethod
+    public void read(PluginCall call) {
+        JSArray texts = call.getArray("texts");
+        int progress = call.getInt("progress");
+        float rate = call.getFloat("rate", 1.0F);
+        float pitch = call.getFloat("pitch", 1.0F);
+        float volume = call.getFloat("volume", 1.0F);
+        float pan = call.getFloat("pan", 0.0F);
+        String voiceURI = call.getString("voiceURI", "");
+        String audioStreamType = call.getString("audioStreamType", "");
+
+        TTSResultCallback callback = new TTSResultCallback() {
+            @Override
+            public void onDone() {
+                call.resolve();
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                call.reject(errorMessage);
+            }
+
+            @Override
+            public void onProgress(JSObject obj) {
+                notifyListeners("progressEvent", obj);
+            }
+
+            @Override
+            public void onArrayProgress(JSObject progress) { notifyListeners("progressArrayEvent", progress); }
+        };
+
+        try {
+            implementation.read(texts, progress, rate, pitch, volume, pan, voiceURI, call.getCallbackId(), audioStreamType, callback);
+        } catch (Exception ex) {
+            call.reject(ex.getLocalizedMessage());
+        }
+    }
 }

@@ -14,6 +14,7 @@ npx cap sync
 <docgen-index>
 
 * [`speak(...)`](#speak)
+* [`read(...)`](#read)
 * [`stop()`](#stop)
 * [`getSupportedLanguages()`](#getsupportedlanguages)
 * [`getSupportedVoices()`](#getsupportedvoices)
@@ -22,7 +23,7 @@ npx cap sync
 * [`getMaxSpeechInputLength()`](#getmaxspeechinputlength)
 * [`getDefaults()`](#getdefaults)
 * [`openInstall()`](#openinstall)
-* [`addListener('progressEvent', ...)`](#addlistenerprogressevent-)
+* [`addListener('progressEvent' | 'progressArrayEvent', ...)`](#addlistenerprogressevent--progressarrayevent-)
 * [Interfaces](#interfaces)
 
 </docgen-index>
@@ -39,6 +40,19 @@ speak(options: TTSOptions) => Promise<void>
 | Param         | Type                                              |
 | ------------- | ------------------------------------------------- |
 | **`options`** | <code><a href="#ttsoptions">TTSOptions</a></code> |
+
+--------------------
+
+
+### read(...)
+
+```typescript
+read(options: TTSReadOptions) => Promise<void>
+```
+
+| Param         | Type                                                      |
+| ------------- | --------------------------------------------------------- |
+| **`options`** | <code><a href="#ttsreadoptions">TTSReadOptions</a></code> |
 
 --------------------
 
@@ -129,16 +143,16 @@ openInstall() => Promise<void>
 --------------------
 
 
-### addListener('progressEvent', ...)
+### addListener('progressEvent' | 'progressArrayEvent', ...)
 
 ```typescript
-addListener(eventName: 'progressEvent', listenerFunc: (obj: { utteranceId: string; start: number; end: number; frame: number; }) => void) => Promise<PluginListenerHandle>
+addListener(eventName: 'progressEvent' | 'progressArrayEvent', listenerFunc: (obj: { utteranceId?: string; start?: number; end?: number; frame?: number; progress?: number; }) => void) => Promise<PluginListenerHandle>
 ```
 
-| Param              | Type                                                                                               |
-| ------------------ | -------------------------------------------------------------------------------------------------- |
-| **`eventName`**    | <code>'progressEvent'</code>                                                                       |
-| **`listenerFunc`** | <code>(obj: { utteranceId: string; start: number; end: number; frame: number; }) =&gt; void</code> |
+| Param              | Type                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| **`eventName`**    | <code>'progressEvent' \| 'progressArrayEvent'</code>                                                                      |
+| **`listenerFunc`** | <code>(obj: { utteranceId?: string; start?: number; end?: number; frame?: number; progress?: number; }) =&gt; void</code> |
 
 **Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
 
@@ -153,6 +167,20 @@ addListener(eventName: 'progressEvent', listenerFunc: (obj: { utteranceId: strin
 | Prop             | Type                                                                                                                                               | Description                                                                                                                                                                                                                            | Default          |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
 | **`text`**       | <code>string</code>                                                                                                                                | The text that will be synthesised when the utterance is spoken.                                                                                                                                                                        |                  |
+| **`rate`**       | <code>number</code>                                                                                                                                | The speed at which the utterance will be spoken at.                                                                                                                                                                                    | <code>1.0</code> |
+| **`pitch`**      | <code>number</code>                                                                                                                                | The pitch at which the utterance will be spoken at.                                                                                                                                                                                    | <code>1.0</code> |
+| **`volume`**     | <code>number</code>                                                                                                                                | The volume that the utterance will be spoken at.                                                                                                                                                                                       | <code>1.0</code> |
+| **`pan`**        | <code>number</code>                                                                                                                                | Parameter key to specify how the speech is panned from left to right when speaking text. Pan is specified as a float ranging from -1 to +1 where -1 maps to a hard-left pan, 0 to center (the default behavior), and +1 to hard-right. | <code>0.0</code> |
+| **`voiceURI`**   | <code>number</code>                                                                                                                                | The index of the selected voice that will be used to speak the utterance. Possible voices can be queried using `getSupportedVoices`.                                                                                                   |                  |
+| **`streamType`** | <code>'STREAM_ALARM' \| 'STREAM_DTMF' \| 'STREAM_MUSIC' \| 'STREAM_NOTIFICATION' \| 'STREAM_RING' \| 'STREAM_SYSTEM' \| 'STREAM_VOICE_CALL'</code> | Parameter key to specify the audio stream type to be used when speaking text or playing back a file. The value should be one of the STREAM_ constants defined in AudioManager.                                                         |                  |
+
+
+#### TTSReadOptions
+
+| Prop             | Type                                                                                                                                               | Description                                                                                                                                                                                                                            | Default          |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **`texts`**      | <code>string[]</code>                                                                                                                              | The text that will be synthesised when the utterance is spoken.                                                                                                                                                                        |                  |
+| **`progress`**   | <code>number</code>                                                                                                                                |                                                                                                                                                                                                                                        |                  |
 | **`rate`**       | <code>number</code>                                                                                                                                | The speed at which the utterance will be spoken at.                                                                                                                                                                                    | <code>1.0</code> |
 | **`pitch`**      | <code>number</code>                                                                                                                                | The pitch at which the utterance will be spoken at.                                                                                                                                                                                    | <code>1.0</code> |
 | **`volume`**     | <code>number</code>                                                                                                                                | The volume that the utterance will be spoken at.                                                                                                                                                                                       | <code>1.0</code> |

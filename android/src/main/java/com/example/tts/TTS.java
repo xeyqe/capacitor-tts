@@ -14,6 +14,8 @@ import android.util.Log;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 
+import org.json.JSONException;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -26,6 +28,7 @@ public class TTS {
     private TTSResultCallback callback;
     private android.speech.tts.TextToSpeech tts = null;
 
+    private int progress = 0;
     private String speechParamsTxt = "";
 
 
@@ -115,7 +118,7 @@ public class TTS {
 
         if (!this.speechParamsTxt.equals(speakParams)) {
             this.speechParamsTxt = speakParams;
-            if (!voiceURI.equals("")) {
+            if (!voiceURI.isEmpty()) {
                 ArrayList<Voice> supportedVoices = getSupportedVoicesOrdered();
                 supportedVoices.stream()
                         .filter(item -> voiceURI.equals(item.getName()))
@@ -133,6 +136,154 @@ public class TTS {
         }
 
         this.tts.speak(text, TextToSpeech.QUEUE_ADD, params, callbackId);
+    }
+
+    public void speak(
+        JSArray texts,
+        float rate,
+        float pitch,
+        float volume,
+        float pan,
+        String voiceURI,
+        String audioStreamType,
+        String callbackId,
+        TTSResultCallback callback
+    ) {
+        this.callback = callback;
+        progress++;
+        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            @Override
+            public void onStart(String utteranceId) {
+                Log.i(LOG_TAG, "onStart: " + utteranceId);
+            }
+
+            @Override
+            public void onDone(String utteranceId) {
+                Log.i(LOG_TAG, "onDone: " + utteranceId);
+                JSObject obj = new JSObject();
+                obj.put("progress", progress);
+                callback.onArrayProgress(obj);
+                if (progress + 1 < texts.length()) {
+                    speak(
+                        texts,
+                        rate,
+                        pitch,
+                        volume,
+                        pan,
+                        voiceURI,
+                        audioStreamType,
+                        callbackId,
+                        callback
+                    );
+                } else {
+                    callback.onDone();
+                }
+            }
+
+            @Override
+            public void onError(String utteranceId) {
+                Log.i(LOG_TAG, "onError: " + utteranceId);
+
+                if (callback != null) {
+                    callback.onError("Error: " + utteranceId);
+                }
+            }
+
+            @Override
+            public void onStop(String utteranceId, boolean interrupted) {
+                Log.i(LOG_TAG, "onStop: " + utteranceId);
+
+                if (callback != null) {
+                    callback.onError("Canceled: " + utteranceId + " " + interrupted);
+                }
+            }
+
+            @Override
+            public void onRangeStart(String utteranceId, int start, int end, int frame) {
+                Log.i(LOG_TAG, "onRange: " + utteranceId + " start " + start + " end " + end + " frame " + frame);
+
+                if (callback != null) {
+                    JSObject obj = new JSObject();
+                    obj.put("utteranceId", utteranceId);
+                    obj.put("start", start);
+                    obj.put("end", end);
+                    obj.put("frame", frame);
+                    callback.onProgress(obj);
+                }
+            }
+        });
+        String speakParams = rate + pitch + volume + pan + voiceURI + audioStreamType + callbackId;
+        Log.i(LOG_TAG, "speakParams: " + speakParams);
+        Bundle params = null;
+
+        if (!this.speechParamsTxt.equals(speakParams)) {
+            this.speechParamsTxt = speakParams;
+            if (!voiceURI.isEmpty()) {
+                ArrayList<Voice> supportedVoices = getSupportedVoicesOrdered();
+                supportedVoices.stream()
+                        .filter(item -> voiceURI.equals(item.getName()))
+                        .findAny().ifPresent(voice -> tts.setVoice(voice));
+            }
+
+            tts.setSpeechRate(rate);
+            tts.setPitch(pitch);
+            int streamType = this.getAudioStreamType(audioStreamType);
+
+            params = new Bundle();
+            params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, streamType);
+            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume);
+            params.putFloat(TextToSpeech.Engine.KEY_PARAM_PAN, pan);
+        }
+
+        String text;
+        try {
+            text = texts.getString(progress);
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+
+        this.tts.speak(text, TextToSpeech.QUEUE_ADD, params, callbackId);
+    }
+
+    public void read(
+        JSArray texts,
+        int progress,
+        float rate,
+        float pitch,
+        float volume,
+        float pan,
+        String voiceURI,
+        String audioStreamType,
+        String callbackId,
+        TTSResultCallback callback
+    ) {
+        this.progress = progress;
+        if (progress < texts.length()) {
+            this.speak(
+                texts,
+                rate,
+                pitch,
+                volume,
+                pan,
+                voiceURI,
+                audioStreamType,
+                callbackId,
+                callback
+            );
+        }
+        if (progress+1 < texts.length()) {
+            this.speak(
+                texts,
+                rate,
+                pitch,
+                volume,
+                pan,
+                voiceURI,
+                audioStreamType,
+                callbackId,
+                callback
+            );
+        }
     }
 
     private int getAudioStreamType(String audioStreamTypeString) {
@@ -219,6 +370,7 @@ public class TTS {
 
         return orderedVoices;
     }
+    
     public JSArray getSupportedLanguages() {
         ArrayList<String> languages = new ArrayList<>();
         Set<Locale> supportedLocales = tts.getAvailableLanguages();
@@ -273,6 +425,7 @@ public class TTS {
 
         return obj;
     }
+    
     public void openInstall(Context context) {
         PackageManager packageManager = context.getPackageManager();
         Intent installIntent = new Intent();

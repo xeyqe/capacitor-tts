@@ -6,4 +6,5 @@ public interface TTSResultCallback {
     void onDone();
     void onError(String errorMessage);
     void onProgress(JSObject obj);
+    void onArrayProgress(JSObject progress);
 }
