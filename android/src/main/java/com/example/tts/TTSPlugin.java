@@ -12,10 +12,13 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "TTS")
 public class TTSPlugin extends Plugin {
 
+    private AudioFocus audioFocusImplementation;
+
     private TTS implementation;
 
     @Override
     public void load() {
+        audioFocusImplementation = new AudioFocus(getContext());
         implementation = new TTS(getContext());
     }
 
@@ -204,5 +207,60 @@ public class TTSPlugin extends Plugin {
         } catch (Exception ex) {
             call.reject(ex.getLocalizedMessage());
         }
+    }
+
+    @PluginMethod
+    public void requestFocus(PluginCall call) {
+
+        AudioFocusResultCallback callback = new AudioFocusResultCallback() {
+            @Override
+            public void onDone() {
+                call.resolve();
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                call.reject(errorMessage);
+            }
+
+            @Override
+            public void onAudioFocusChange(JSObject obj) {
+                notifyListeners("audioFocusChangeEvent", obj);
+            }
+
+            @Override
+            public void onPauseTTS() {
+                implementation.stop();
+            }
+        };
+
+        audioFocusImplementation.requestFocus(callback);
+    }
+
+    @PluginMethod
+    public void abandonFocus(PluginCall call) {
+        AudioFocusResultCallback callback = new AudioFocusResultCallback() {
+            @Override
+            public void onDone() {
+                call.resolve();
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                call.reject(errorMessage);
+            }
+
+            @Override
+            public void onAudioFocusChange(JSObject obj) {
+                notifyListeners("audioFocusChangeEvent", obj);
+            }
+
+            @Override
+            public void onPauseTTS() {
+                implementation.stop();
+            }
+        };
+
+        audioFocusImplementation.abandonFocus(callback);
     }
 }

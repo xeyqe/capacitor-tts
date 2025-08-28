@@ -68,4 +68,10 @@ export class TTSWeb extends WebPlugin implements TTSPlugin {
     console.log(listenerFunc);
     return Promise.resolve(null as any);
   };
+  async requestFocus(): Promise<void> {
+    return Promise.resolve();
+  };
+  async abandonFocus(): Promise<void> {
+    return Promise.resolve();
+  };
 }

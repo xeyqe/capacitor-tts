@@ -23,7 +23,9 @@ npx cap sync
 * [`getMaxSpeechInputLength()`](#getmaxspeechinputlength)
 * [`getDefaults()`](#getdefaults)
 * [`openInstall()`](#openinstall)
-* [`addListener('progressEvent' | 'progressArrayEvent', ...)`](#addlistenerprogressevent--progressarrayevent-)
+* [`addListener('progressEvent' | 'progressArrayEvent' | 'audioFocusChangeEvent', ...)`](#addlistenerprogressevent--progressarrayevent--audiofocuschangeevent-)
+* [`requestFocus()`](#requestfocus)
+* [`abandonFocus()`](#abandonfocus)
 * [Interfaces](#interfaces)
 
 </docgen-index>
@@ -143,18 +145,36 @@ openInstall() => Promise<void>
 --------------------
 
 
-### addListener('progressEvent' | 'progressArrayEvent', ...)
+### addListener('progressEvent' | 'progressArrayEvent' | 'audioFocusChangeEvent', ...)
 
 ```typescript
-addListener(eventName: 'progressEvent' | 'progressArrayEvent', listenerFunc: (obj: { utteranceId?: string; start?: number; end?: number; frame?: number; progress?: number; }) => void) => Promise<PluginListenerHandle>
+addListener(eventName: 'progressEvent' | 'progressArrayEvent' | 'audioFocusChangeEvent', listenerFunc: (obj: { utteranceId?: string; start?: number; end?: number; frame?: number; progress?: number; type?: 'AUDIOFOCUS_GAIN' | 'AUDIOFOCUS_LOSS' | 'AUDIOFOCUS_LOSS_TRANSIENT' | 'AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK'; }) => void) => Promise<PluginListenerHandle>
 ```
 
-| Param              | Type                                                                                                                      |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| **`eventName`**    | <code>'progressEvent' \| 'progressArrayEvent'</code>                                                                      |
-| **`listenerFunc`** | <code>(obj: { utteranceId?: string; start?: number; end?: number; frame?: number; progress?: number; }) =&gt; void</code> |
+| Param              | Type                                                                                                                                                                                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`eventName`**    | <code>'progressEvent' \| 'progressArrayEvent' \| 'audioFocusChangeEvent'</code>                                                                                                                                                                 |
+| **`listenerFunc`** | <code>(obj: { utteranceId?: string; start?: number; end?: number; frame?: number; progress?: number; type?: 'AUDIOFOCUS_GAIN' \| 'AUDIOFOCUS_LOSS' \| 'AUDIOFOCUS_LOSS_TRANSIENT' \| 'AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK'; }) =&gt; void</code> |
 
 **Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
+
+--------------------
+
+
+### requestFocus()
+
+```typescript
+requestFocus() => Promise<void>
+```
+
+--------------------
+
+
+### abandonFocus()
+
+```typescript
+abandonFocus() => Promise<void>
+```
 
 --------------------
 

@@ -21,15 +21,18 @@ export interface TTSPlugin {
   }>;
   openInstall(): Promise<void>;
   addListener(
-    eventName: 'progressEvent' | 'progressArrayEvent',
+    eventName: 'progressEvent' | 'progressArrayEvent' | 'audioFocusChangeEvent',
     listenerFunc: (obj: {
       utteranceId?: string,
       start?: number,
       end?: number,
       frame?: number,
       progress?: number,
+      type?: 'AUDIOFOCUS_GAIN' | 'AUDIOFOCUS_LOSS' | 'AUDIOFOCUS_LOSS_TRANSIENT' | 'AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK'
     }) => void,
   ): Promise<PluginListenerHandle>;
+  requestFocus(): Promise<void>;
+  abandonFocus(): Promise<void>;
 }
 
 export interface TTSOptions {
