@@ -124,6 +124,8 @@ export interface TTSReadOptions {
   * The value should be one of the STREAM_ constants defined in AudioManager.
   */
   streamType?: 'STREAM_ALARM' | 'STREAM_DTMF' | 'STREAM_MUSIC' | 'STREAM_NOTIFICATION' | 'STREAM_RING' | 'STREAM_SYSTEM' | 'STREAM_VOICE_CALL';
+  /** for my app only */
+  bookId?: number;
 }
 
 

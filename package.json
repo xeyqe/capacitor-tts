@@ -1,6 +1,6 @@
 {
   "name": "@xeyqe/capacitor-tts",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Capacitor tts plugin for Android.",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",

@@ -21,6 +21,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 public class TTS {
     public static final String LOG_TAG = "myTTS";
@@ -30,9 +32,10 @@ public class TTS {
 
     private int progress = 0;
     private String speechParamsTxt = "";
-
+    private DB dbImplementation;
 
     public TTS(Context context) {
+        dbImplementation = new DB(context);
         try {
             tts = new android.speech.tts.TextToSpeech(context, status -> {
                 this.status = status;
@@ -147,10 +150,11 @@ public class TTS {
         String voiceURI,
         String audioStreamType,
         String callbackId,
+        int bookId,
+        int prgrs,
         TTSResultCallback callback
     ) {
         this.callback = callback;
-        progress++;
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override
             public void onStart(String utteranceId) {
@@ -161,9 +165,10 @@ public class TTS {
             public void onDone(String utteranceId) {
                 Log.i(LOG_TAG, "onDone: " + utteranceId);
                 JSObject obj = new JSObject();
-                obj.put("progress", progress);
+                obj.put("progress", prgrs);
+                Log.i("myspeak", "prgs: " + String.valueOf(prgrs));
                 callback.onArrayProgress(obj);
-                if (progress + 1 < texts.length()) {
+                if (progress < texts.length()) {
                     speak(
                         texts,
                         rate,
@@ -173,11 +178,14 @@ public class TTS {
                         voiceURI,
                         audioStreamType,
                         callbackId,
+                        bookId,
+                        progress,
                         callback
                     );
                 } else {
                     callback.onDone();
                 }
+                dbImplementation.updateProgressOfBook(bookId, String.valueOf(progress) + "/" + String.valueOf(texts.length() - 1));
             }
 
             @Override
@@ -241,6 +249,7 @@ public class TTS {
         } catch (JSONException e) {
             throw new RuntimeException(e);
         }
+        progress++;
 
         this.tts.speak(text, TextToSpeech.QUEUE_ADD, params, callbackId);
     }
@@ -255,6 +264,7 @@ public class TTS {
         String voiceURI,
         String audioStreamType,
         String callbackId,
+        int bookId,
         TTSResultCallback callback
     ) {
         this.progress = progress;
@@ -268,10 +278,13 @@ public class TTS {
                 voiceURI,
                 audioStreamType,
                 callbackId,
+                bookId,
+                progress + 0,
                 callback
             );
         }
-        if (progress+1 < texts.length()) {
+
+        if (progress < texts.length()) {
             this.speak(
                 texts,
                 rate,
@@ -281,6 +294,8 @@ public class TTS {
                 voiceURI,
                 audioStreamType,
                 callbackId,
+                bookId,
+                progress + 0,
                 callback
             );
         }

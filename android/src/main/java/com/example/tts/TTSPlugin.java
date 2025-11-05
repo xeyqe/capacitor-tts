@@ -179,6 +179,7 @@ public class TTSPlugin extends Plugin {
         float pitch = call.getFloat("pitch", 1.0F);
         float volume = call.getFloat("volume", 1.0F);
         float pan = call.getFloat("pan", 0.0F);
+        int bookId = call.getInt("bookId");
         String voiceURI = call.getString("voiceURI", "");
         String audioStreamType = call.getString("audioStreamType", "");
 
@@ -203,7 +204,7 @@ public class TTSPlugin extends Plugin {
         };
 
         try {
-            implementation.read(texts, progress, rate, pitch, volume, pan, voiceURI, call.getCallbackId(), audioStreamType, callback);
+            implementation.read(texts, progress, rate, pitch, volume, pan, voiceURI, call.getCallbackId(), audioStreamType, bookId, callback);
         } catch (Exception ex) {
             call.reject(ex.getLocalizedMessage());
         }
