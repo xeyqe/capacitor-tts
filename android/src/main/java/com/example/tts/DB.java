@@ -1,8 +1,8 @@
 package com.example.tts;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
-import android.util.Log;
 
 import java.io.File;
 
@@ -24,7 +24,9 @@ public class DB {
 
     public void updateProgressOfBook(int id, String progress) {
         if (db != null) {
-            db.execSQL("UPDATE books SET progress = " + progress + " WHERE id = " + id);
+            ContentValues cv = new ContentValues();
+            cv.put("progress", progress);
+            db.update("books", cv, "id = ?", new String[]{String.valueOf(id)});
         }
     }
 }
