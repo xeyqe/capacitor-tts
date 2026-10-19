@@ -9,6 +9,28 @@ npm install capacitor-tts
 npx cap sync
 ```
 
+## Android background reading
+
+`read()` runs in a `mediaPlayback` foreground service and continues when the app
+goes into the background. A reading notification includes a **Stop** action.
+The service stops when all texts finish, reading fails, or `stop()` is called.
+Starting another read, calling `speak()`, or switching engines cancels the current read.
+Progress events and saved book progress continue to be produced by native code;
+JavaScript listeners may be suspended while the WebView is in the background.
+
+Start `read()` while the app is visible, then move it to the background.
+[Android 12 and later restrict starting foreground services from the background](https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start).
+If the system rejects the service start, the `read()` promise rejects with an error.
+Reading does not automatically resume after the app process is killed.
+
+The plugin manifest includes `FOREGROUND_SERVICE`,
+`FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `WAKE_LOCK`, and the service declaration.
+A partial wake lock keeps the native reading loop running with the screen off and
+is released when reading ends. Run `npx cap sync android`
+after updating the plugin. On Android 13 and later, the host app can request
+notification permission to show the reading notification in the notification drawer;
+this permission is not required to start the foreground service.
+
 ## API
 
 <docgen-index>

@@ -6,6 +6,8 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.media.AudioManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.speech.tts.Voice;
@@ -26,7 +28,9 @@ import java.util.concurrent.TimeUnit;
 
 public class TTS {
     public static final String LOG_TAG = "myTTS";
-    private int status;
+    private int status = TextToSpeech.ERROR;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private int readGeneration;
     private TTSResultCallback callback;
     private android.speech.tts.TextToSpeech tts = null;
 
@@ -154,104 +158,90 @@ public class TTS {
         int prgrs,
         TTSResultCallback callback
     ) {
+        final int generation = readGeneration;
+        final int index = prgrs;
+        final String utteranceId = callbackId + ":" + index;
         this.callback = callback;
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-            @Override
-            public void onStart(String utteranceId) {
-                Log.i(LOG_TAG, "onStart: " + utteranceId);
+            private boolean isCurrent(String id) {
+                return generation == readGeneration && utteranceId.equals(id);
             }
 
             @Override
-            public void onDone(String utteranceId) {
-                Log.i(LOG_TAG, "onDone: " + utteranceId);
-                JSObject obj = new JSObject();
-                obj.put("progress", prgrs);
-                Log.i("myspeak", "prgs: " + String.valueOf(prgrs));
-                callback.onArrayProgress(obj);
-                if (progress < texts.length()) {
-                    speak(
-                        texts,
-                        rate,
-                        pitch,
-                        volume,
-                        pan,
-                        voiceURI,
-                        audioStreamType,
-                        callbackId,
-                        bookId,
-                        progress,
-                        callback
-                    );
-                } else {
-                    callback.onDone();
-                }
-                dbImplementation.updateProgressOfBook(bookId, String.valueOf(progress) + "/" + String.valueOf(texts.length() - 1));
+            public void onStart(String id) {}
+
+            @Override
+            public void onDone(String id) {
+                handler.post(() -> {
+                    if (!isCurrent(id)) return;
+                    try {
+                        dbImplementation.updateProgressOfBook(bookId, (index + 1) + "/" + (texts.length() - 1));
+                        JSObject obj = new JSObject();
+                        obj.put("progress", index);
+                        callback.onArrayProgress(obj);
+                        if (generation != readGeneration) return;
+                        if (progress < texts.length()) {
+                            speak(texts, rate, pitch, volume, pan, voiceURI, audioStreamType,
+                                callbackId, bookId, progress, callback);
+                        } else {
+                            callback.onDone();
+                        }
+                    } catch (Exception ex) {
+                        callback.onError(ex.getLocalizedMessage());
+                    }
+                });
             }
 
             @Override
-            public void onError(String utteranceId) {
-                Log.i(LOG_TAG, "onError: " + utteranceId);
-
-                if (callback != null) {
-                    callback.onError("Error: " + utteranceId);
-                }
+            public void onError(String id) {
+                handler.post(() -> {
+                    if (isCurrent(id)) callback.onError("Error: " + id);
+                });
             }
 
             @Override
-            public void onStop(String utteranceId, boolean interrupted) {
-                Log.i(LOG_TAG, "onStop: " + utteranceId);
-
-                if (callback != null) {
-                    callback.onError("Canceled: " + utteranceId + " " + interrupted);
-                }
+            public void onStop(String id, boolean interrupted) {
+                handler.post(() -> {
+                    if (isCurrent(id)) callback.onError("Canceled: " + id + " " + interrupted);
+                });
             }
 
             @Override
-            public void onRangeStart(String utteranceId, int start, int end, int frame) {
-                Log.i(LOG_TAG, "onRange: " + utteranceId + " start " + start + " end " + end + " frame " + frame);
-
-                if (callback != null) {
+            public void onRangeStart(String id, int start, int end, int frame) {
+                handler.post(() -> {
+                    if (!isCurrent(id)) return;
                     JSObject obj = new JSObject();
-                    obj.put("utteranceId", utteranceId);
+                    obj.put("utteranceId", callbackId);
                     obj.put("start", start);
                     obj.put("end", end);
                     obj.put("frame", frame);
                     callback.onProgress(obj);
-                }
+                });
             }
         });
-        String speakParams = rate + pitch + volume + pan + voiceURI + audioStreamType + callbackId;
-        Log.i(LOG_TAG, "speakParams: " + speakParams);
-        Bundle params = null;
 
-        if (!this.speechParamsTxt.equals(speakParams)) {
-            this.speechParamsTxt = speakParams;
-            if (!voiceURI.isEmpty()) {
-                ArrayList<Voice> supportedVoices = getSupportedVoicesOrdered();
-                supportedVoices.stream()
-                        .filter(item -> voiceURI.equals(item.getName()))
-                        .findAny().ifPresent(voice -> tts.setVoice(voice));
-            }
-
-            tts.setSpeechRate(rate);
-            tts.setPitch(pitch);
-            int streamType = this.getAudioStreamType(audioStreamType);
-
-            params = new Bundle();
-            params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, streamType);
-            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume);
-            params.putFloat(TextToSpeech.Engine.KEY_PARAM_PAN, pan);
+        // Every segment needs its own parameters, including volume and stream type.
+        if (!voiceURI.isEmpty()) {
+            getSupportedVoicesOrdered().stream()
+                .filter(voice -> voiceURI.equals(voice.getName()))
+                .findAny().ifPresent(voice -> tts.setVoice(voice));
         }
+        tts.setSpeechRate(rate);
+        tts.setPitch(pitch);
+        Bundle params = new Bundle();
+        params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, getAudioStreamType(audioStreamType));
+        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume);
+        params.putFloat(TextToSpeech.Engine.KEY_PARAM_PAN, pan);
 
-        String text;
         try {
-            text = texts.getString(progress);
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
+            String text = texts.getString(index);
+            progress = index + 1;
+            if (tts.speak(text, TextToSpeech.QUEUE_ADD, params, utteranceId) == TextToSpeech.ERROR) {
+                callback.onError("Unable to queue text at index " + index);
+            }
+        } catch (JSONException ex) {
+            callback.onError("Invalid text at index " + index);
         }
-        progress++;
-
-        this.tts.speak(text, TextToSpeech.QUEUE_ADD, params, callbackId);
     }
 
     public void read(
@@ -267,38 +257,23 @@ public class TTS {
         int bookId,
         TTSResultCallback callback
     ) {
+        if (!isAvailable()) {
+            callback.onError("Not yet initialized or not available on this device.");
+            return;
+        }
+        if (texts == null || progress < 0 || progress > texts.length()) {
+            callback.onError("texts must be an array and progress must be within its bounds.");
+            return;
+        }
         this.progress = progress;
-        if (progress < texts.length()) {
-            this.speak(
-                texts,
-                rate,
-                pitch,
-                volume,
-                pan,
-                voiceURI,
-                audioStreamType,
-                callbackId,
-                bookId,
-                progress + 0,
-                callback
-            );
+        readGeneration++;
+        this.speechParamsTxt = "";
+        if (progress == texts.length()) {
+            callback.onDone();
+            return;
         }
-
-        if (progress < texts.length()) {
-            this.speak(
-                texts,
-                rate,
-                pitch,
-                volume,
-                pan,
-                voiceURI,
-                audioStreamType,
-                callbackId,
-                bookId,
-                progress + 0,
-                callback
-            );
-        }
+        speak(texts, rate, pitch, volume, pan, voiceURI, audioStreamType,
+            callbackId, bookId, progress, callback);
     }
 
     private int getAudioStreamType(String audioStreamTypeString) {
@@ -334,8 +309,9 @@ public class TTS {
 
     public void switchEngine(String engineName, TTSResultCallback callback, Context context) {
         try {
+            status = TextToSpeech.ERROR;
+            stop();
             if (tts != null) {
-                tts.stop();
                 tts.shutdown();
             }
             tts = new android.speech.tts.TextToSpeech(
@@ -417,7 +393,8 @@ public class TTS {
     }
 
     public void stop() {
-        tts.stop();
+        readGeneration++;
+        if (tts != null) tts.stop();
     }
 
     private JSObject convertVoiceToJSObject(Voice voice) {
@@ -455,10 +432,11 @@ public class TTS {
     }
 
     public void onDestroy() {
+        dbImplementation.close();
         if (tts == null) {
             return;
         }
-        tts.stop();
+        stop();
         tts.shutdown();
     }
 

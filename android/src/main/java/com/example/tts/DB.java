@@ -22,6 +22,10 @@ public class DB {
         }
     }
 
+    public void close() {
+        if (db != null) db.close();
+    }
+
     public void updateProgressOfBook(int id, String progress) {
         if (db != null) {
             ContentValues cv = new ContentValues();
