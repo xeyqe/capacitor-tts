@@ -5,9 +5,18 @@ Capacitor tts plugin for Android.
 ## Install
 
 ```bash
-npm install capacitor-tts
+npm install @xeyqe/capacitor-tts
 npx cap sync
 ```
+
+## Requirements
+
+This version requires Capacitor 8 and Node.js 22 or newer. Android builds use
+Java 21 and SDK 36, with Android 7.0 (API 24) as the minimum supported version.
+iOS requires iOS 15 or newer and Xcode 26 or newer.
+
+See the [Capacitor 8 migration guide](https://capacitorjs.com/docs/updating/8-0)
+when upgrading an existing app.
 
 ## Android background reading
 
