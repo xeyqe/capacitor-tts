@@ -34,7 +34,6 @@ public class TTS {
     private TTSResultCallback callback;
     private android.speech.tts.TextToSpeech tts = null;
 
-    private int progress = 0;
     private String speechParamsTxt = "";
     private DB dbImplementation;
 
@@ -159,12 +158,56 @@ public class TTS {
         TTSResultCallback callback
     ) {
         final int generation = readGeneration;
-        final int index = prgrs;
-        final String utteranceId = callbackId + ":" + index;
         this.callback = callback;
-        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+
+        if (!voiceURI.isEmpty()) {
+            getSupportedVoicesOrdered().stream()
+                .filter(voice -> voiceURI.equals(voice.getName()))
+                .findAny().ifPresent(voice -> tts.setVoice(voice));
+        }
+        tts.setSpeechRate(rate);
+        tts.setPitch(pitch);
+        Bundle params = new Bundle();
+        params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, getAudioStreamType(audioStreamType));
+        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume);
+        params.putFloat(TextToSpeech.Engine.KEY_PARAM_PAN, pan);
+
+        class ArraySpeechListener extends UtteranceProgressListener {
+            private int nextToQueue = prgrs;
+            private int nextToComplete = prgrs;
+            private boolean finished;
+
             private boolean isCurrent(String id) {
-                return generation == readGeneration && utteranceId.equals(id);
+                return !finished && generation == readGeneration && (callbackId + ":" + nextToComplete).equals(id);
+            }
+
+            private void fail(String message) {
+                finished = true;
+                tts.stop();
+                callback.onError(message);
+            }
+
+            private void queueNext() {
+                if (finished || generation != readGeneration || nextToQueue >= texts.length()) return;
+                int index = nextToQueue;
+                try {
+                    String text = texts.getString(index);
+                    if (tts.speak(text, TextToSpeech.QUEUE_ADD, params, callbackId + ":" + index) == TextToSpeech.ERROR) {
+                        fail("Unable to queue text at index " + index);
+                        return;
+                    }
+                    nextToQueue++;
+                } catch (JSONException ex) {
+                    fail("Invalid text at index " + index);
+                }
+            }
+
+            private boolean isQueued(String id) {
+                if (finished || generation != readGeneration) return false;
+                for (int index = nextToComplete; index < nextToQueue; index++) {
+                    if ((callbackId + ":" + index).equals(id)) return true;
+                }
+                return false;
             }
 
             @Override
@@ -175,19 +218,21 @@ public class TTS {
                 handler.post(() -> {
                     if (!isCurrent(id)) return;
                     try {
+                        int index = nextToComplete++;
+                        // Keep one sentence ahead before database work and JS callbacks.
+                        queueNext();
+                        if (finished) return;
                         dbImplementation.updateProgressOfBook(bookId, (index + 1) + "/" + (texts.length() - 1));
                         JSObject obj = new JSObject();
                         obj.put("progress", index);
                         callback.onArrayProgress(obj);
                         if (generation != readGeneration) return;
-                        if (progress < texts.length()) {
-                            speak(texts, rate, pitch, volume, pan, voiceURI, audioStreamType,
-                                callbackId, bookId, progress, callback);
-                        } else {
+                        if (nextToComplete == texts.length()) {
+                            finished = true;
                             callback.onDone();
                         }
                     } catch (Exception ex) {
-                        callback.onError(ex.getLocalizedMessage());
+                        fail(ex.getLocalizedMessage());
                     }
                 });
             }
@@ -195,14 +240,14 @@ public class TTS {
             @Override
             public void onError(String id) {
                 handler.post(() -> {
-                    if (isCurrent(id)) callback.onError("Error: " + id);
+                    if (isQueued(id)) fail("Error: " + id);
                 });
             }
 
             @Override
             public void onStop(String id, boolean interrupted) {
                 handler.post(() -> {
-                    if (isCurrent(id)) callback.onError("Canceled: " + id + " " + interrupted);
+                    if (isQueued(id)) fail("Canceled: " + id + " " + interrupted);
                 });
             }
 
@@ -218,30 +263,12 @@ public class TTS {
                     callback.onProgress(obj);
                 });
             }
-        });
-
-        // Every segment needs its own parameters, including volume and stream type.
-        if (!voiceURI.isEmpty()) {
-            getSupportedVoicesOrdered().stream()
-                .filter(voice -> voiceURI.equals(voice.getName()))
-                .findAny().ifPresent(voice -> tts.setVoice(voice));
         }
-        tts.setSpeechRate(rate);
-        tts.setPitch(pitch);
-        Bundle params = new Bundle();
-        params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, getAudioStreamType(audioStreamType));
-        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume);
-        params.putFloat(TextToSpeech.Engine.KEY_PARAM_PAN, pan);
 
-        try {
-            String text = texts.getString(index);
-            progress = index + 1;
-            if (tts.speak(text, TextToSpeech.QUEUE_ADD, params, utteranceId) == TextToSpeech.ERROR) {
-                callback.onError("Unable to queue text at index " + index);
-            }
-        } catch (JSONException ex) {
-            callback.onError("Invalid text at index " + index);
-        }
+        ArraySpeechListener listener = new ArraySpeechListener();
+        tts.setOnUtteranceProgressListener(listener);
+        listener.queueNext();
+        listener.queueNext();
     }
 
     public void read(
@@ -265,7 +292,6 @@ public class TTS {
             callback.onError("texts must be an array and progress must be within its bounds.");
             return;
         }
-        this.progress = progress;
         readGeneration++;
         this.speechParamsTxt = "";
         if (progress == texts.length()) {

@@ -129,18 +129,31 @@ public class TTSForegroundServiceTest {
         TTS engine = service.getTTS();
         // Initialization is asynchronous on a device; mark the shadow engine ready.
         ReflectionHelpers.setField(engine, "status", TextToSpeech.SUCCESS);
-        RecordingCallback result = new RecordingCallback();
-        JSArray texts = JSArray.from(new String[] { "first", "second", "third" });
+        List<Integer> queuedAtProgress = new ArrayList<>();
+        RecordingCallback result = new RecordingCallback() {
+            @Override
+            public void onArrayProgress(JSObject value) {
+                super.onArrayProgress(value);
+                queuedAtProgress.add(shadowOf(ShadowTextToSpeech.getLastTextToSpeechInstance()).getSpokenTextList().size());
+                assertEquals(0, completed);
+            }
+        };
+        JSArray texts = JSArray.from(new String[] { "first", "second", "third", "fourth" });
         service.startReading(callback -> engine.read(texts, 0, 1, 1, 1, 0, "", "STREAM_MUSIC", "read", 0, callback), result);
         service.onStartCommand(new Intent(), 0, 1);
         assertEquals(0, result.completed);
+        assertEquals(
+            Arrays.asList("first", "second"),
+            shadowOf(ShadowTextToSpeech.getLastTextToSpeechInstance()).getSpokenTextList()
+        );
         assertNotNull(shadowOf(service).getLastForegroundNotification());
         shadowOf(Looper.getMainLooper()).idle();
         assertEquals(
-            Arrays.asList("first", "second", "third"),
+            Arrays.asList("first", "second", "third", "fourth"),
             shadowOf(ShadowTextToSpeech.getLastTextToSpeechInstance()).getSpokenTextList()
         );
-        assertEquals(Arrays.asList(0, 1, 2), result.progress);
+        assertEquals(Arrays.asList(0, 1, 2, 3), result.progress);
+        assertEquals(Arrays.asList(3, 4, 4, 4), queuedAtProgress);
         assertEquals(1, result.completed);
         assertTrue(result.errors.isEmpty());
         assertNull(shadowOf(service).getLastForegroundNotification());
@@ -153,15 +166,44 @@ public class TTSForegroundServiceTest {
         RecordingCallback result = new RecordingCallback();
         service.startReading(
             callback ->
-                engine.read(JSArray.from(new String[] { "first", "second" }), 0, 1, 1, 1, 0, "", "STREAM_MUSIC", "read", 0, callback),
+                engine.read(JSArray.from(new String[] { "first", "second", "third" }), 0, 1, 1, 1, 0, "", "STREAM_MUSIC", "read", 0, callback),
             result
         );
         service.onStartCommand(new Intent(), 0, 1);
         service.stopReading();
         shadowOf(Looper.getMainLooper()).idle();
-        assertEquals(Arrays.asList("first"), shadowOf(ShadowTextToSpeech.getLastTextToSpeechInstance()).getSpokenTextList());
+        assertEquals(Arrays.asList("first", "second"), shadowOf(ShadowTextToSpeech.getLastTextToSpeechInstance()).getSpokenTextList());
         assertEquals(0, result.completed);
         assertEquals(1, result.errors.size());
+    }
+
+    @Test
+    public void resumedReadQueuesFromSavedProgress() {
+        TTS engine = service.getTTS();
+        ReflectionHelpers.setField(engine, "status", TextToSpeech.SUCCESS);
+        RecordingCallback result = new RecordingCallback();
+        engine.read(JSArray.from(new String[] { "first", "second", "third" }), 1, 1, 1, 1, 0, "", "STREAM_MUSIC", "read", 0, result);
+        assertEquals(Arrays.asList("second", "third"), shadowOf(ShadowTextToSpeech.getLastTextToSpeechInstance()).getSpokenTextList());
+        shadowOf(Looper.getMainLooper()).idle();
+        assertEquals(Arrays.asList(1, 2), result.progress);
+        assertEquals(1, result.completed);
+        assertTrue(result.errors.isEmpty());
+    }
+
+    @Test
+    public void queuedSentenceErrorStopsReadOnce() {
+        TTS engine = service.getTTS();
+        ReflectionHelpers.setField(engine, "status", TextToSpeech.SUCCESS);
+        RecordingCallback result = new RecordingCallback();
+        engine.read(JSArray.from(new String[] { "first", "second", "third" }), 0, 1, 1, 1, 0, "", "STREAM_MUSIC", "read", 0, result);
+        ShadowTextToSpeech speech = shadowOf(ShadowTextToSpeech.getLastTextToSpeechInstance());
+        speech.getUtteranceProgressListener().onError("read:1");
+        speech.getUtteranceProgressListener().onError("read:0");
+        shadowOf(Looper.getMainLooper()).idle();
+        assertTrue(speech.isStopped());
+        assertEquals(Arrays.asList("first", "second"), speech.getSpokenTextList());
+        assertEquals(Arrays.asList("Error: read:1"), result.errors);
+        assertEquals(0, result.completed);
     }
 
     private static class RecordingCallback implements TTSResultCallback {
