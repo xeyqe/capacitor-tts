@@ -1,9 +1,13 @@
-import type { PluginListenerHandle } from '@capacitor/core';
+import type { PermissionState, PluginListenerHandle } from '@capacitor/core';
 import { WebPlugin } from '@capacitor/core';
 
 import type { SpeechSynthesisEngine, TTSOptions, TTSReadOptions, TTSPlugin } from './definitions';
 
 export class TTSWeb extends WebPlugin implements TTSPlugin {
+  async requestForegroundPermissions(): Promise<{ notifications: PermissionState }> {
+    throw this.unimplemented('Foreground reading permissions are only available on Android.');
+  }
+
   async speak(options: TTSOptions): Promise<void> {
     console.log(options)
     return Promise.resolve();

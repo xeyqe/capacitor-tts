@@ -33,17 +33,29 @@ If the system rejects the service start, the `read()` promise rejects with an er
 Reading does not automatically resume after the app process is killed.
 
 The plugin manifest includes `FOREGROUND_SERVICE`,
-`FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `WAKE_LOCK`, and the service declaration.
+`FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `WAKE_LOCK`, `POST_NOTIFICATIONS`, and the service declaration.
 A partial wake lock keeps the native reading loop running with the screen off and
 is released when reading ends. Run `npx cap sync android`
-after updating the plugin. On Android 13 and later, the host app can request
-notification permission to show the reading notification in the notification drawer;
-this permission is not required to start the foreground service.
+after updating the plugin. Call `requestForegroundPermissions()` from a user action
+while the app is visible to request notification permission on Android 13 and later:
+
+```typescript
+const { notifications } = await TTS.requestForegroundPermissions();
+```
+
+The result is a Capacitor permission state (`granted`, `denied`, `prompt`, or
+`prompt-with-rationale`). Earlier Android versions return `granted` without a prompt.
+Android decides whether another prompt can be shown after denial; users may need
+to enable notifications in app settings. This permission shows the reading
+notification in the notification drawer and is not required to start the foreground
+service. The foreground service permissions themselves are granted at install time.
+This method is Android only; the web implementation rejects as unimplemented.
 
 ## API
 
 <docgen-index>
 
+* [`requestForegroundPermissions()`](#requestforegroundpermissions)
 * [`speak(...)`](#speak)
 * [`read(...)`](#read)
 * [`stop()`](#stop)
@@ -58,11 +70,29 @@ this permission is not required to start the foreground service.
 * [`requestFocus()`](#requestfocus)
 * [`abandonFocus()`](#abandonfocus)
 * [Interfaces](#interfaces)
+* [Type Aliases](#type-aliases)
 
 </docgen-index>
 
 <docgen-api>
 <!--Update the source file JSDoc comments and rerun docgen to update the docs below-->
+
+### requestForegroundPermissions()
+
+```typescript
+requestForegroundPermissions() => Promise<{ notifications: PermissionState; }>
+```
+
+Requests notification permission for the Android foreground reading service.
+Android 13+ shows a system prompt when permission can be requested.
+Earlier Android versions return `granted` without prompting.
+Foreground service permissions are granted at install time; notification
+denial does not prevent foreground playback. Android only.
+
+**Returns:** <code>Promise&lt;{ notifications: <a href="#permissionstate">PermissionState</a>; }&gt;</code>
+
+--------------------
+
 
 ### speak(...)
 
@@ -266,5 +296,13 @@ abandonFocus() => Promise<void>
 | Prop         | Type                                      |
 | ------------ | ----------------------------------------- |
 | **`remove`** | <code>() =&gt; Promise&lt;void&gt;</code> |
+
+
+### Type Aliases
+
+
+#### PermissionState
+
+<code>'prompt' | 'prompt-with-rationale' | 'granted' | 'denied'</code>
 
 </docgen-api>

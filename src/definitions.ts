@@ -1,6 +1,14 @@
-import type { PluginListenerHandle } from "@capacitor/core";
+import type { PermissionState, PluginListenerHandle } from "@capacitor/core";
 
 export interface TTSPlugin {
+  /**
+   * Requests notification permission for the Android foreground reading service.
+   * Android 13+ shows a system prompt when permission can be requested.
+   * Earlier Android versions return `granted` without prompting.
+   * Foreground service permissions are granted at install time; notification
+   * denial does not prevent foreground playback. Android only.
+   */
+  requestForegroundPermissions(): Promise<{ notifications: PermissionState }>;
   speak(options: TTSOptions): Promise<void>;
   read(options: TTSReadOptions): Promise<void>;
   stop(): Promise<void>;

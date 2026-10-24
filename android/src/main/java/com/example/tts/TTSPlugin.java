@@ -1,22 +1,27 @@
 package com.example.tts;
 
+import android.Manifest;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import java.util.ArrayList;
 import java.util.List;
 
-@CapacitorPlugin(name = "TTS")
+@CapacitorPlugin(name = "TTS", permissions = { @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
 public class TTSPlugin extends Plugin {
 
     private AudioFocus audioFocusImplementation;
@@ -85,6 +90,25 @@ public class TTSPlugin extends Plugin {
                     .bindService(new Intent(getContext(), TTSForegroundService.class), connection, Context.BIND_AUTO_CREATE);
             }
         });
+    }
+
+    @PluginMethod
+    public void requestForegroundPermissions(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || getPermissionState("notifications") == PermissionState.GRANTED) {
+            foregroundPermissionsCallback(call);
+        } else {
+            requestPermissionForAlias("notifications", call, "foregroundPermissionsCallback");
+        }
+    }
+
+    @PermissionCallback
+    private void foregroundPermissionsCallback(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put(
+            "notifications",
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ? "granted" : getPermissionState("notifications").toString()
+        );
+        call.resolve(result);
     }
 
     @PluginMethod
